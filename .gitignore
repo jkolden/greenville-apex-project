@@ -1,0 +1,13 @@
+# Data files
+*.csv
+*.zip
+*.dat
+
+# Temp / scratch
+_scratch*/
+*.tmp
+*.log
+
+# OS
+Thumbs.db
+.DS_Store

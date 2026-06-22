@@ -1,0 +1,129 @@
+-- =============================================================================
+-- GL JOURNAL LINES  (GlJournalLineExtractPVO)
+-- Pipeline: L_GL_JOURNAL_LINES_BC -> S_GL_JOURNAL_LINES_BC -> GL_JOURNAL_LINES_BC
+-- PK: (JEHEADERID, JELINENUM)
+-- FK: JEHEADERID -> GL_JOURNAL_HEADER_BC
+-- =============================================================================
+
+-- Landing Table (all VARCHAR2(4000))
+CREATE TABLE L_GL_JOURNAL_LINES_BC (
+    GLJELINESACCOUNTEDCR                        VARCHAR2(4000),
+    GLJELINESACCOUNTEDDR                        VARCHAR2(4000),
+    GLJELINESCODECOMBINATIONID                  VARCHAR2(4000),
+    GLJELINESCREATEDBY                          VARCHAR2(4000),
+    GLJELINESCREATIONDATE                       VARCHAR2(4000),
+    GLJELINESCURRENCYCODE                       VARCHAR2(4000),
+    GLJELINESCURRENCYCONVERSIONDATE             VARCHAR2(4000),
+    GLJELINESCURRENCYCONVERSIONRATE             VARCHAR2(4000),
+    GLJELINESCURRENCYCONVERSIONTYPE             VARCHAR2(4000),
+    GLJELINESDESCRIPTION                        VARCHAR2(4000),
+    GLJELINESEFFECTIVEDATE                      VARCHAR2(4000),
+    GLJELINESENTEREDCR                          VARCHAR2(4000),
+    GLJELINESENTEREDDR                          VARCHAR2(4000),
+    GLJELINESGLSLLINKID                         VARCHAR2(4000),
+    GLJELINESGLSLLINKTABLE                      VARCHAR2(4000),
+    GLJELINESIGNORERATEFLAG                     VARCHAR2(4000),
+    GLJELINESLASTUPDATEDATE                     VARCHAR2(4000),
+    GLJELINESLASTUPDATELOGIN                    VARCHAR2(4000),
+    GLJELINESLASTUPDATEDBY                      VARCHAR2(4000),
+    GLJELINESLEDGERID                           VARCHAR2(4000),
+    GLJELINESLINETYPECODE                       VARCHAR2(4000),
+    GLJELINESOBJECTVERSIONNUMBER                VARCHAR2(4000),
+    GLJELINESPERIODNAME                         VARCHAR2(4000),
+    GLJELINESREFERENCE1                         VARCHAR2(4000),
+    GLJELINESREFERENCE10                        VARCHAR2(4000),
+    GLJELINESREFERENCE2                         VARCHAR2(4000),
+    GLJELINESREFERENCE3                         VARCHAR2(4000),
+    GLJELINESREFERENCE4                         VARCHAR2(4000),
+    GLJELINESREFERENCE5                         VARCHAR2(4000),
+    GLJELINESREFERENCE6                         VARCHAR2(4000),
+    GLJELINESREFERENCE7                         VARCHAR2(4000),
+    GLJELINESREFERENCE8                         VARCHAR2(4000),
+    GLJELINESREFERENCE9                         VARCHAR2(4000),
+    GLJELINESSTATAMOUNT                         VARCHAR2(4000),
+    GLJELINESSTATUS                             VARCHAR2(4000),
+    GLJELINESSUBLEDGERDOCSEQUENCEID             VARCHAR2(4000),
+    GLJELINESSUBLEDGERDOCSEQUENCEVALUE          VARCHAR2(4000),
+    JEHEADERID                                  VARCHAR2(4000),
+    JELINENUM                                   VARCHAR2(4000)
+);
+
+-- =============================================================================
+-- Staging Table
+-- =============================================================================
+CREATE TABLE S_GL_JOURNAL_LINES_BC (
+    JOB_ID                                      NUMBER NOT NULL,
+    JEHEADERID                                  NUMBER,
+    JELINENUM                                   NUMBER,
+    GLJELINESCODECOMBINATIONID                  NUMBER,
+    GLJELINESCREATIONDATE_RAW                   VARCHAR2(50),
+    GLJELINESCREATIONDATE_TS                    TIMESTAMP(6),
+    GLJELINESCURRENCYCODE                       VARCHAR2(80),
+    GLJELINESCURRENCYCONVERSIONDATE_RAW         VARCHAR2(50),
+    GLJELINESCURRENCYCONVERSIONDATE_TS          TIMESTAMP(6),
+    GLJELINESCURRENCYCONVERSIONRATE             NUMBER,
+    GLJELINESCURRENCYCONVERSIONTYPE             VARCHAR2(80),
+    GLJELINESDESCRIPTION                        VARCHAR2(400),
+    GLJELINESEFFECTIVEDATE_RAW                  VARCHAR2(50),
+    GLJELINESEFFECTIVEDATE_TS                   TIMESTAMP(6),
+    GLJELINESENTEREDCR                          NUMBER,
+    GLJELINESENTEREDDR                          NUMBER,
+    GLJELINESGLSLLINKID                         NUMBER,
+    GLJELINESIGNORERATEFLAG                     VARCHAR2(1),
+    GLJELINESLASTUPDATEDATE_RAW                 VARCHAR2(50),
+    GLJELINESLASTUPDATEDATE_TS                  TIMESTAMP(6),
+    GLJELINESLASTUPDATELOGIN_RAW                VARCHAR2(50),
+    GLJELINESLASTUPDATELOGIN_TS                 TIMESTAMP(6),
+    GLJELINESLASTUPDATEDBY_RAW                  VARCHAR2(50),
+    GLJELINESLASTUPDATEDBY_TS                   TIMESTAMP(6),
+    GLJELINESLEDGERID                           NUMBER,
+    GLJELINESLINETYPECODE                       VARCHAR2(80),
+    GLJELINESOBJECTVERSIONNUMBER                VARCHAR2(80),
+    GLJELINESPERIODNAME                         VARCHAR2(400),
+    GLJELINESSTATAMOUNT                         NUMBER,
+    GLJELINESSTATUS                             VARCHAR2(80),
+    GLJELINESSUBLEDGERDOCSEQUENCEID             NUMBER,
+    GLJELINESSUBLEDGERDOCSEQUENCEVALUE          NUMBER,
+    LAST_EXTRACT_RUN_ID                         VARCHAR2(64),
+    LAST_EXTRACT_RUN_TS                         TIMESTAMP(6)
+);
+
+CREATE INDEX S_GL_JOURNAL_LINES_BC_N1 ON S_GL_JOURNAL_LINES_BC (JOB_ID, JEHEADERID, JELINENUM);
+CREATE INDEX S_GL_JOURNAL_LINES_BC_N2 ON S_GL_JOURNAL_LINES_BC (JOB_ID, GLJELINESCODECOMBINATIONID);
+
+-- =============================================================================
+-- Final Table
+-- =============================================================================
+CREATE TABLE GL_JOURNAL_LINES_BC (
+    JEHEADERID                                  NUMBER,
+    JELINENUM                                   NUMBER,
+    GLJELINESCODECOMBINATIONID                  NUMBER,
+    GLJELINESCREATIONDATE_TS                    TIMESTAMP(6),
+    GLJELINESCURRENCYCODE                       VARCHAR2(80),
+    GLJELINESCURRENCYCONVERSIONDATE_TS          TIMESTAMP(6),
+    GLJELINESCURRENCYCONVERSIONRATE             NUMBER,
+    GLJELINESCURRENCYCONVERSIONTYPE             VARCHAR2(80),
+    GLJELINESDESCRIPTION                        VARCHAR2(400),
+    GLJELINESEFFECTIVEDATE_TS                   TIMESTAMP(6),
+    GLJELINESENTEREDCR                          NUMBER,
+    GLJELINESENTEREDDR                          NUMBER,
+    GLJELINESGLSLLINKID                         NUMBER,
+    GLJELINESIGNORERATEFLAG                     VARCHAR2(1),
+    GLJELINESLASTUPDATEDATE_TS                  TIMESTAMP(6),
+    GLJELINESLASTUPDATELOGIN_TS                 TIMESTAMP(6),
+    GLJELINESLASTUPDATEDBY_TS                   TIMESTAMP(6),
+    GLJELINESLEDGERID                           NUMBER,
+    GLJELINESLINETYPECODE                       VARCHAR2(80),
+    GLJELINESOBJECTVERSIONNUMBER                VARCHAR2(80),
+    GLJELINESPERIODNAME                         VARCHAR2(400),
+    GLJELINESSTATAMOUNT                         NUMBER,
+    GLJELINESSTATUS                             VARCHAR2(80),
+    GLJELINESSUBLEDGERDOCSEQUENCEID             NUMBER,
+    GLJELINESSUBLEDGERDOCSEQUENCEVALUE          NUMBER,
+    LAST_EXTRACT_RUN_ID                         VARCHAR2(64),
+    LAST_EXTRACT_RUN_TS                         TIMESTAMP(6),
+    CONSTRAINT FBX_GL_JOURNAL_LINES_PK PRIMARY KEY (JEHEADERID, JELINENUM)
+);
+
+CREATE INDEX GL_JOURNAL_LINES_BC_N1 ON GL_JOURNAL_LINES_BC (GLJELINESCODECOMBINATIONID);
+CREATE INDEX GL_JOURNAL_LINES_BC_N2 ON GL_JOURNAL_LINES_BC (GLJELINESPERIODNAME, GLJELINESLEDGERID);
