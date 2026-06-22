@@ -59,8 +59,3 @@ Before deploying, replace these placeholders throughout the DDL files:
 | `pkg_bicc_common.gc_credential` | OCI Object Storage credential name |
 | `pkg_bicc_common.gc_bucket_uri` | OCI Object Storage bucket URI |
 
-## Known Gaps
-
-The following exist in the database but DDL files are not yet in this repo:
-- `PO_LINES_BC` final table — built directly in DB
-- `PKG_BICC_GL_JOURNAL_BATCH/HEADER/LINES` — packages exist in DB, DDL not yet captured
