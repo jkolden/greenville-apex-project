@@ -1,0 +1,19 @@
+-- =============================================================================
+-- Demo seed data for rec_school_grant
+-- =============================================================================
+-- Adjust usernames and location codes to match your environment.
+-- Location codes must match RECRUITING_REPORT_V.LOCATION_CODE
+-- (sourced from dim_location_r.location_code).
+--
+-- To see available location codes:
+--   SELECT location_code, location_name FROM dim_location_r ORDER BY 2;
+-- =============================================================================
+
+-- Example: grant a demo user access to two locations
+-- INSERT INTO rec_school_grant (app_user, location_code, granted_by, notes)
+-- VALUES ('FOSTER', '188', 'SEED', 'Gateway Elementary School');
+--
+-- INSERT INTO rec_school_grant (app_user, location_code, granted_by, notes)
+-- VALUES ('FOSTER', '435', 'SEED', 'Sullivan Center');
+--
+-- COMMIT;
