@@ -209,6 +209,11 @@ CREATE OR REPLACE PACKAGE BODY pkg_rec_move AS
     -- Payload: {"phaseId": <n>, "stateId": <n>, "comments": "..."}
     -- On success, immediately GETs the updated record and merges it into
     -- JOB_APPLICANTS_R so the local table reflects the change.
+    --
+    -- TODO (pre-go-live): Replace Basic Auth (BICC_FUSION app settings) with
+    -- the logged-in user's Fusion credentials so the move action runs as the
+    -- hiring manager/recruiter, not a service account. This ensures proper
+    -- Fusion audit trail and data security enforcement.
     -- =========================================================================
 
     FUNCTION move_application (
