@@ -113,22 +113,31 @@ create or replace package body pkg_bicc_common as
     begin
         merge into bicc_files t
         using (
-            select file_name, load_type
+            select file_name,
+                   load_type,
+                   -- Parse timestamp from filename: -YYYYMMDD_HH24MISS.zip
+                   to_timestamp(
+                       regexp_substr(file_name, '-(\d{8}_\d{6})\.zip', 1, 1, 'i', 1),
+                       'YYYYMMDD_HH24MISS'
+                   ) as file_timestamp
             from bicc_files_v
         ) s
         on (t.file_name = s.file_name)
 
         when matched then update set
-            t.load_type    = s.load_type,
-            t.refreshed_ts = systimestamp
+            t.load_type      = s.load_type,
+            t.file_timestamp = nvl(t.file_timestamp, s.file_timestamp),
+            t.refreshed_ts   = systimestamp
 
         when not matched then insert (
             file_name,
             load_type,
+            file_timestamp,
             refreshed_ts
         ) values (
             s.file_name,
             s.load_type,
+            s.file_timestamp,
             systimestamp
         );
 
