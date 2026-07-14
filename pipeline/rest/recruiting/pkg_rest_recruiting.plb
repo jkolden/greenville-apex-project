@@ -45,23 +45,49 @@ create or replace package body pkg_rest_recruiting as
     -- Replaces APEX declarative sync + load_requisition_dffs + load_published_jobs.
     -- =========================================================================
 
-    procedure load_requisitions is
-        l_url         varchar2(2000);
-        l_body        clob;
-        l_offset      number := 0;
-        l_limit       number := 500;
-        l_req_merged  number := 0;
-        l_dff_merged  number := 0;
-        l_pub_merged  number := 0;
-        l_error_msg   varchar2(4000);
+    procedure load_requisitions(p_full_refresh in boolean default true) is
+        l_url          varchar2(2000);
+        l_body         clob;
+        l_offset       number := 0;
+        l_limit        number := 500;
+        l_req_merged   number := 0;
+        l_dff_merged   number := 0;
+        l_pub_merged   number := 0;
+        l_error_msg    varchar2(4000);
+        l_date_filter  varchar2(200) := null;
     begin
+        -- Incremental: filter by RequisitionLastModifiedDate minus 2-day overlap.
+        -- MERGE handles re-processing of overlap records.
+        if not p_full_refresh then
+            begin
+                select to_char(
+                           cast(max(requisitionlastmodifieddate) as timestamp) - interval '2' day,
+                           'YYYY-MM-DD"T"HH24:MI:SS".000Z"'
+                       )
+                  into l_date_filter
+                  from job_requisitions_r;
+            exception
+                when others then
+                    l_date_filter := null;  -- fall back to full if table empty
+            end;
+        end if;
+
         loop
-            l_url := gc_fa_base_url
+            l_url := pkg_bicc_common.gc_fa_base_url
                 || '/hcmRestApi/resources/latest/recruitingJobRequisitions'
                 || '?onlyData=true'
                 || '&expand=requisitionDFF,publishedJobs'
                 || '&limit=' || l_limit
                 || '&offset=' || l_offset;
+
+            -- Apply incremental date filter if set
+            if l_date_filter is not null then
+                l_url := l_url || '&q=RequisitionLastModifiedDate+%3E+%27'
+                    || utl_url.escape(
+                           replace(l_date_filter, '+00:00', 'Z'),
+                           true, 'AL32UTF8')
+                    || '%27';
+            end if;
 
             l_body := fetch_json(l_url);
 
@@ -286,11 +312,13 @@ create or replace package body pkg_rest_recruiting as
 
             l_pub_merged := l_pub_merged + sql%rowcount;
 
+            -- Commit after each page to release row locks promptly.
+            -- MERGEs are idempotent, so partial progress is safe.
+            commit;
+
             exit when not has_more(l_body);
             l_offset := l_offset + l_limit;
         end loop;
-
-        commit;
 
         insert into bicc_load_log (
             load_type, step, rows_processed, rows_inserted, status
@@ -338,7 +366,7 @@ create or replace package body pkg_rest_recruiting as
     -- timestamps may or may not include fractional seconds).
     -- =========================================================================
 
-    procedure load_candidates is
+    procedure load_candidates(p_full_refresh in boolean default false) is
         l_url          varchar2(2000);
         l_body         clob;
         l_offset       number;
@@ -354,19 +382,21 @@ create or replace package body pkg_rest_recruiting as
         l_pass         number := 0;
     begin
         -- Incremental: start from max CandLastModifiedDate minus 2-day overlap.
-        -- NULL = full refresh (first run or empty table).
+        -- NULL = full refresh (first run, empty table, or explicit full refresh).
         -- MERGE handles re-processing of overlap records.
-        begin
-            select to_char(
-                       cast(max(candlastmodifieddate) as timestamp) - interval '2' day,
-                       'YYYY-MM-DD"T"HH24:MI:SS".000Z"'
-                   )
-              into l_date_filter
-              from recruiting_candidates_r;
-        exception
-            when others then
-                l_date_filter := null;
-        end;
+        if not p_full_refresh then
+            begin
+                select to_char(
+                           cast(max(candlastmodifieddate) as timestamp) - interval '2' day,
+                           'YYYY-MM-DD"T"HH24:MI:SS".000Z"'
+                       )
+                  into l_date_filter
+                  from recruiting_candidates_r;
+            exception
+                when others then
+                    l_date_filter := null;
+            end;
+        end if;
 
         -- Outer loop: each pass covers a date window.
         -- Oracle REST silently returns hasMore=false at 10K offset cap,
@@ -380,7 +410,7 @@ create or replace package body pkg_rest_recruiting as
 
             -- Inner loop: offset pagination within the date window
             loop
-                l_url := gc_fa_base_url
+                l_url := pkg_bicc_common.gc_fa_base_url
                     || '/hcmRestApi/resources/11.13.18.05/recruitingCandidates'
                     || '?expand=candidatePhones'
                     || '&orderBy=CandLastModifiedDate:asc'
@@ -630,6 +660,10 @@ create or replace package body pkg_rest_recruiting as
 
             l_phone_merged := l_phone_merged + sql%rowcount;
 
+            -- Commit after each page to release row locks promptly.
+            -- MERGEs are idempotent, so partial progress is safe.
+            commit;
+
             -- Track max CandLastModifiedDate on this page for cursor advancement
             begin
                 select max(jt.cand_mod)
@@ -666,8 +700,6 @@ create or replace package body pkg_rest_recruiting as
             end if;
 
         end loop;  -- outer (date cursor) loop
-
-        commit;
 
         insert into bicc_load_log (
             load_type, step, rows_processed, rows_inserted, status

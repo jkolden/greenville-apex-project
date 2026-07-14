@@ -228,10 +228,7 @@ create or replace package body pkg_bicc_common as
         -- 1) Refresh the file list
         refresh_bicc_files;
 
-        -- 2) Refresh REST-loaded dimension tables (Jobs, Grades, Locations)
-        pkg_bicc_dimensions.refresh_all;
-
-        -- 3) Refresh REST-loaded recruiting data (Requisitions, Applications)
+        -- 2) Refresh REST-loaded recruiting data (Requisitions, Applications)
         pkg_rest_recruiting.refresh_all;
 
         -- 3) For each load_type, pick the latest file from "today PT", but only if not already processed

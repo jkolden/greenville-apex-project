@@ -1,10 +1,10 @@
 create or replace package body pkg_bip_soap as
 
     c_bip_url       constant varchar2(4000) :=
-    'https://<FUSION_HOST_DEV>/xmlpserver/services/ExternalReportWSSService';
+    pkg_bicc_common.gc_fa_base_url || '/xmlpserver/services/ExternalReportWSSService';
 
     c_credential_id constant varchar2(255) :=
-    '<FUSION_CREDENTIAL>';
+    'gcs_reports';
 
     c_soap_action   constant varchar2(4000) :=
         'http://xmlns.oracle.com/oxp/service/PublicReportService';

@@ -10,8 +10,7 @@ CREATE OR REPLACE PACKAGE pkg_rec_move AS
 -- Uses same credential as pkg_rest_recruiting / pkg_bicc_dimensions.
 -- =============================================================================
 
-    gc_fa_credential CONSTANT VARCHAR2(60)  := '<FUSION_CREDENTIAL>';
-    gc_fa_base_url   CONSTANT VARCHAR2(200) := 'https://<FUSION_HOST_DEV>';
+    gc_fa_credential CONSTANT VARCHAR2(60)  := 'gcs_reports';
 
     -- Move a single applicant to a new phase/state.
     -- Returns the raw JSON response from Fusion.

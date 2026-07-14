@@ -16,9 +16,11 @@ CREATE TABLE rest_source_registry (
     module_code      VARCHAR2(10)   NOT NULL,   -- HCM, FIN, GL, PRC
     date_field       VARCHAR2(100),             -- NULL for FULL_ONLY sources
     sync_type        VARCHAR2(20)   DEFAULT 'INCREMENTAL' NOT NULL
-                     CHECK (sync_type IN ('INCREMENTAL','FULL_ONLY')),
+                     CONSTRAINT rest_src_sync_type_ck
+                     CHECK (sync_type IN ('INCREMENTAL','FULL_ONLY','CODE_BASED')),
     is_active        VARCHAR2(1)    DEFAULT 'Y' NOT NULL
                      CHECK (is_active IN ('Y','N')),
+    loader_procedure VARCHAR2(200),            -- PL/SQL procedure for CODE_BASED sources
     created_ts       TIMESTAMP(6)   DEFAULT SYSTIMESTAMP NOT NULL,
     CONSTRAINT rest_src_module_uk UNIQUE (module_static_id)
 );
@@ -28,6 +30,7 @@ COMMENT ON COLUMN rest_source_registry.module_static_id IS 'APEX REST Data Sourc
 COMMENT ON COLUMN rest_source_registry.date_field IS 'Date attribute for incremental filter; NULL for FULL_ONLY sources';
 COMMENT ON COLUMN rest_source_registry.sync_type IS 'INCREMENTAL = date-filtered sync; FULL_ONLY = no queryable date field';
 COMMENT ON COLUMN rest_source_registry.module_code IS 'Functional module: HCM, FIN, GL, PRC';
+COMMENT ON COLUMN rest_source_registry.loader_procedure IS 'Fully qualified PL/SQL procedure for CODE_BASED sources (e.g. pkg_rest_recruiting.load_requisitions)';
 
 
 -- =============================================================================
@@ -73,8 +76,8 @@ INSERT INTO rest_source_registry (module_static_id, display_name, module_code, d
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
     ('rest_sync_job_applications', 'Job Applications', 'HCM', 'LastUpdateDate', 'INCREMENTAL');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_job_requisitions', 'Job Requisitions', 'HCM', 'RequisitionLastModifiedDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, loader_procedure) VALUES
+    ('rest_sync_job_requisitions', 'Job Requisitions', 'HCM', NULL, 'CODE_BASED', 'pkg_rest_recruiting.load_requisitions');
 
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
     ('rest_sync_absences', 'Absences', 'HCM', 'lastUpdateDate', 'INCREMENTAL');
@@ -85,8 +88,8 @@ INSERT INTO rest_source_registry (module_static_id, display_name, module_code, d
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
     ('rest_sync_salaries', 'Salaries', 'HCM', 'LastUpdateDate', 'INCREMENTAL');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_recruitingcandidates', 'Recruiting Candidates', 'HCM', 'CandLastModifiedDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, loader_procedure) VALUES
+    ('rest_sync_recruitingcandidates', 'Recruiting Candidates', 'HCM', NULL, 'CODE_BASED', 'pkg_rest_recruiting.load_candidates');
 
 -- Procurement (1 source)
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES

@@ -12,7 +12,7 @@ CREATE OR REPLACE PACKAGE BODY pkg_rec_move AS
         l_response CLOB;
         l_status   NUMBER;
     BEGIN
-        l_url := gc_fa_base_url
+        l_url := pkg_bicc_common.gc_fa_base_url
             || '/hcmRestApi/resources/11.13.18.05/recruitingJobApplications/'
             || p_job_application_id;
 
@@ -22,7 +22,7 @@ CREATE OR REPLACE PACKAGE BODY pkg_rec_move AS
         l_response := apex_web_service.make_rest_request(
             p_url                  => l_url,
             p_http_method          => 'GET',
-            p_username             => '<FUSION_CREDENTIAL>',
+            p_username             => 'gcs_reports',
             p_password             => 'Gcsd*#SC543!'
         );
 
@@ -224,7 +224,7 @@ CREATE OR REPLACE PACKAGE BODY pkg_rec_move AS
         l_status   NUMBER;
     BEGIN
         -- Build endpoint URL
-        l_url := gc_fa_base_url
+        l_url := pkg_bicc_common.gc_fa_base_url
             || '/hcmRestApi/resources/11.13.18.05/recruitingJobApplications/'
             || p_job_application_id
             || '/action/move';
@@ -249,7 +249,7 @@ CREATE OR REPLACE PACKAGE BODY pkg_rec_move AS
             p_url                  => l_url,
             p_http_method          => 'POST',
             p_body                 => l_payload,
-            p_username             => '<FUSION_CREDENTIAL>',
+            p_username             => 'gcs_reports',
             p_password             => 'Gcsd*#SC543!'
         );
 

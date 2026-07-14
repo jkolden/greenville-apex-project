@@ -5,8 +5,11 @@ create or replace package pkg_bicc_common as
 -- =============================================================================
 
     -- Constants
-    gc_credential constant varchar2(30)  := '<OCI_CREDENTIAL_NAME>';
-    gc_bucket_uri constant varchar2(200) := 'https://objectstorage.us-ashburn-1.oraclecloud.com/n/<OCI_NAMESPACE>/b/<OCI_BUCKET_NAME>/o/';
+    gc_credential  constant varchar2(30)  := 'OBJ_STORE_CRED_JK';
+    gc_bucket_uri  constant varchar2(200) := 'https://objectstorage.us-ashburn-1.oraclecloud.com/n/idlhcuqzdx2c/b/SCI_Conversion/o/';
+
+    -- Fusion Cloud instance base URL (single source of truth for all packages)
+    gc_fa_base_url constant varchar2(200) := 'https://ibzsjb-dev4.fa.ocs.oraclecloud.com';
 
     -- Type conversion (tolerant of bad data)
     function safe_to_number(p_str varchar2) return number;

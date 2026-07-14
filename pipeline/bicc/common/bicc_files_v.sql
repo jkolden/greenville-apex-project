@@ -4,8 +4,8 @@
   select regexp_substr(object_name, '[^/]+$') as file_name
   from table(
     dbms_cloud.list_objects(
-      credential_name => '<OCI_CREDENTIAL_NAME>',
-      location_uri    => 'https://objectstorage.us-ashburn-1.oraclecloud.com/n/<OCI_NAMESPACE>/b/<OCI_BUCKET_NAME>/o/'
+      credential_name => 'OBJ_STORE_CRED_JK',
+      location_uri    => 'https://objectstorage.us-ashburn-1.oraclecloud.com/n/idlhcuqzdx2c/b/SCI_Conversion/o/'
     )
   )
   where lower(object_name) like '%.zip'
