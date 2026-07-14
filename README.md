@@ -47,14 +47,19 @@ Each entity folder contains:
 - `pkg_bicc_<entity>.sql` — Package spec
 - `pkg_bicc_<entity>.plb` — Package body
 
+## Documentation
+
+- [Environment Migration Guide](documentation/Environment_Migration_Guide.md) — Step-by-step instructions for repointing the platform from one Fusion instance to another (DEV → TEST → PROD)
+
 ## Setup
 
-Before deploying, replace these placeholders throughout the DDL files:
+The Fusion hostname is centralized in `pkg_bicc_common.sql` (`gc_fa_base_url`). Change it once and recompile dependent packages. See the [Migration Guide](documentation/Environment_Migration_Guide.md) for the full checklist.
+
+Other placeholders to review:
 
 | Placeholder | Description |
 |-------------|-------------|
-| `<FUSION_HOST_TEST>` | Oracle Fusion test instance hostname |
-| `<FUSION_HOST_DEV>` | Oracle Fusion dev instance hostname |
+| `<FUSION_HOST_TEST>` | Oracle Fusion test instance hostname (in `pkg_rec_email`, `pkg_app_security`) |
 | `<APEX_WORKSPACE>` | APEX workspace name |
 | `pkg_bicc_common.gc_credential` | OCI Object Storage credential name |
 | `pkg_bicc_common.gc_bucket_uri` | OCI Object Storage bucket URI |
