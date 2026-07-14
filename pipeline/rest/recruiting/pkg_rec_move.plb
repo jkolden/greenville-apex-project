@@ -22,8 +22,8 @@ CREATE OR REPLACE PACKAGE BODY pkg_rec_move AS
         l_response := apex_web_service.make_rest_request(
             p_url                  => l_url,
             p_http_method          => 'GET',
-            p_username             => 'gcs_reports',
-            p_password             => 'Gcsd*#SC543!'
+            p_username             => apex_app_setting.get_value('REC_MOVE_USERNAME'),
+            p_password             => apex_app_setting.get_value('REC_MOVE_PASSWORD')
         );
 
         l_status := apex_web_service.g_status_code;
@@ -249,8 +249,8 @@ CREATE OR REPLACE PACKAGE BODY pkg_rec_move AS
             p_url                  => l_url,
             p_http_method          => 'POST',
             p_body                 => l_payload,
-            p_username             => 'gcs_reports',
-            p_password             => 'Gcsd*#SC543!'
+            p_username             => apex_app_setting.get_value('REC_MOVE_USERNAME'),
+            p_password             => apex_app_setting.get_value('REC_MOVE_PASSWORD')
         );
 
         l_status := apex_web_service.g_status_code;
