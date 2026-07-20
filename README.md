@@ -50,6 +50,7 @@ Each entity folder contains:
 ## Documentation
 
 - [Environment Migration Guide](documentation/Environment_Migration_Guide.md) — Step-by-step instructions for repointing the platform from one Fusion instance to another (DEV → TEST → PROD)
+- [BICC PVO Primary Keys](documentation/BICC_PVO_Primary_Keys.md) — Oracle-documented primary keys for each BICC extract PVO, compared against our pipeline's assumed PKs
 
 ## Setup
 
