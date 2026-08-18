@@ -19,11 +19,12 @@
 --   - User-entered data (notes, rankings, tickets, email config, security grants)
 --   - Schema metadata (view_column_crosswalk)
 --
+-- Table names verified against Object_Inventory.csv (2026-08-18).
 -- Usage: Run from APEX SQL Commands or SQLcl as the schema owner.
 --------------------------------------------------------------------------------
 
 -- ============================================================================
--- 1. BICC FINAL TABLES
+-- 1. BICC FINAL TABLES (21)
 -- ============================================================================
 TRUNCATE TABLE hcm_employee_bc;
 TRUNCATE TABLE hcm_assignment_bc;
@@ -48,7 +49,7 @@ TRUNCATE TABLE po_lines_bc;
 TRUNCATE TABLE supplier_hdr_bc;
 
 -- ============================================================================
--- 2. BICC STAGING TABLES
+-- 2. BICC STAGING TABLES (21)
 -- ============================================================================
 TRUNCATE TABLE s_hcm_employee_bc;
 TRUNCATE TABLE s_hcm_assignment_bc;
@@ -61,15 +62,19 @@ TRUNCATE TABLE s_qstnr_response_bc;
 TRUNCATE TABLE s_ap_invoice_hdr_bc;
 TRUNCATE TABLE s_ap_disbursement_bc;
 TRUNCATE TABLE s_ap_inv_application_bc;
+TRUNCATE TABLE s_ar_invoices_bc;
 TRUNCATE TABLE s_gl_code_comb_bc;
 TRUNCATE TABLE s_gl_balance_bc;
 TRUNCATE TABLE s_gl_budget_balance_bc;
+TRUNCATE TABLE s_gl_journal_batch_bc;
+TRUNCATE TABLE s_gl_journal_header_bc;
+TRUNCATE TABLE s_gl_journal_lines_bc;
 TRUNCATE TABLE s_po_hdr_bc;
 TRUNCATE TABLE s_po_lines_bc;
 TRUNCATE TABLE s_supplier_hdr_bc;
 
 -- ============================================================================
--- 3. BICC LANDING TABLES
+-- 3. BICC LANDING TABLES (21)
 -- ============================================================================
 TRUNCATE TABLE l_hcm_employee_bc;
 TRUNCATE TABLE l_hcm_assignment_bc;
@@ -82,9 +87,13 @@ TRUNCATE TABLE l_qstnr_response_bc;
 TRUNCATE TABLE l_ap_invoice_hdr_bc;
 TRUNCATE TABLE l_ap_disbursement_bc;
 TRUNCATE TABLE l_ap_inv_application_bc;
+TRUNCATE TABLE l_ar_invoices_bc;
 TRUNCATE TABLE l_gl_code_comb_bc;
 TRUNCATE TABLE l_gl_balance_bc;
 TRUNCATE TABLE l_gl_budget_balance_bc;
+TRUNCATE TABLE l_gl_journal_batch_bc;
+TRUNCATE TABLE l_gl_journal_header_bc;
+TRUNCATE TABLE l_gl_journal_lines_bc;
 TRUNCATE TABLE l_po_hdr_bc;
 TRUNCATE TABLE l_po_lines_bc;
 TRUNCATE TABLE l_supplier_hdr_bc;
@@ -128,16 +137,16 @@ TRUNCATE TABLE req_published_jobs_r;
 -- ============================================================================
 -- 6. DIMENSION TABLES
 -- ============================================================================
-TRUNCATE TABLE fbx_dim_job;
-TRUNCATE TABLE fbx_dim_grade;
-TRUNCATE TABLE fbx_dim_location;
-TRUNCATE TABLE dim_department_r;
+TRUNCATE TABLE dim_job_r;
+TRUNCATE TABLE dim_grade_r;
+TRUNCATE TABLE dim_location_r;
 
 -- ============================================================================
 -- 7. BIP REPORT TABLES
 -- ============================================================================
 TRUNCATE TABLE bip_gallup_assessments;
 TRUNCATE TABLE bip_questionnaires;
+TRUNCATE TABLE ext_flex_stg;
 
 -- ============================================================================
 -- 8. ROUTING PHASE/STATE (instance-specific IDs)
