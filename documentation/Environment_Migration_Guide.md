@@ -217,7 +217,7 @@ Before opening the BICC console, collect these values from the OCI Console:
 | Setting | Where to Find | Current DEV4 Value |
 |---|---|---|
 | **Tenancy OCID** | OCI Console → Administration → Tenancy Details | `ocid1.tenancy.oc1..aaaaaaahs3wjpvh4nniu2jiobn6maups5jysgjkr3igkevr2gt6vzpjp73a` |
-| **User OCID** | OCI Console → Identity → Users → select the integration user | `ocid1.user.oc1..aaaaaaaaehhrizn73kh2wvbqcpcqt67osmqrgtdhqte63d5rp5vjoa7tw7yq` |
+| **User OCID** | OCI Console → Identity & Security → Domains → *your domain* → Users → select the integration user | `ocid1.user.oc1..aaaaaaaaehhrizn73kh2wvbqcpcqt67osmqrgtdhqte63d5rp5vjoa7tw7yq` |
 | **Namespace** | OCI Console → Object Storage → Bucket Details | `idlhcuqzdx2c` |
 | **Bucket** | OCI Console → Object Storage → Buckets | `SCI_Conversion` |
 
@@ -246,7 +246,7 @@ Each Fusion instance generates its own unique API signing key pair. This is the 
    - This creates a new RSA key pair inside the Fusion instance
    - A **Fingerprint** will appear (e.g., `1a:d5:ae:a1:92:cc:67:6f:0d:50:cc:6b:59:27:73:b4`)
 2. Click **Export** to download the **public key** file (PEM format)
-3. Go to **OCI Console → Identity → Users → select the integration user → API Keys**
+3. Go to **OCI Console → Identity & Security → Domains → *your domain* → Users → select the integration user → API Keys**
 4. Click **Add API Key** → Choose **Paste Public Key**
 5. Paste the contents of the exported PEM file and click **Add**
 6. Verify the fingerprint shown in OCI matches the fingerprint displayed in the BICC console
