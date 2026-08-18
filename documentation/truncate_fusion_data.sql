@@ -21,10 +21,19 @@
 --
 -- Table names verified against user_tables (2026-08-18).
 -- Usage: Paste into APEX SQL Commands and run as the schema owner.
---        Uses EXECUTE IMMEDIATE because TRUNCATE is DDL and APEX SQL
---        Commands only runs one statement at a time.
+--        Uses EXECUTE IMMEDIATE because TRUNCATE is DDL.
+--        Disables/re-enables FK constraints to avoid ORA-02266.
 --------------------------------------------------------------------------------
 BEGIN
+  -- Disable all foreign keys first to avoid ORA-02266
+  FOR c IN (SELECT constraint_name, table_name
+            FROM user_constraints
+            WHERE constraint_type = 'R'
+            AND status = 'ENABLED') LOOP
+    EXECUTE IMMEDIATE 'ALTER TABLE ' || c.table_name ||
+      ' DISABLE CONSTRAINT ' || c.constraint_name;
+  END LOOP;
+
   -- BICC FINAL TABLES (21)
   EXECUTE IMMEDIATE 'TRUNCATE TABLE hcm_employee_bc';
   EXECUTE IMMEDIATE 'TRUNCATE TABLE hcm_assignment_bc';
@@ -151,6 +160,15 @@ BEGIN
   EXECUTE IMMEDIATE 'TRUNCATE TABLE bip_load_log';
   EXECUTE IMMEDIATE 'TRUNCATE TABLE recon_run';
   EXECUTE IMMEDIATE 'TRUNCATE TABLE recon_result';
+
+  -- Re-enable all foreign keys
+  FOR c IN (SELECT constraint_name, table_name
+            FROM user_constraints
+            WHERE constraint_type = 'R'
+            AND status = 'DISABLED') LOOP
+    EXECUTE IMMEDIATE 'ALTER TABLE ' || c.table_name ||
+      ' ENABLE CONSTRAINT ' || c.constraint_name;
+  END LOOP;
 END;
 /
 
