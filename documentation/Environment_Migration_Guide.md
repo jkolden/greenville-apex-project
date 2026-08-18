@@ -208,18 +208,70 @@ If the import approach is not available or a manual review is needed, the 24 dat
 
 ### 6.3 BICC External Storage
 
-The BICC console in the new Fusion instance needs an External Storage profile that points to the **existing** OCI Object Storage bucket (`SCI_Conversion`).
+The BICC console in the new Fusion instance needs an External Storage profile that points to the **existing** OCI Object Storage bucket (`SCI_Conversion`). This profile establishes a trust relationship between Fusion and OCI Object Storage using an API signing key.
 
-| Setting | Value |
+#### Step 1: Gather OCI Identifiers
+
+Before opening the BICC console, collect these values from the OCI Console:
+
+| Setting | Where to Find | Current DEV4 Value |
+|---|---|---|
+| **Tenancy OCID** | OCI Console → Administration → Tenancy Details | `ocid1.tenancy.oc1..aaaaaaahs3wjpvh4nniu2jiobn6maups5jysgjkr3igkevr2gt6vzpjp73a` |
+| **User OCID** | OCI Console → Identity → Users → select the integration user | `ocid1.user.oc1..aaaaaaaaehhrizn73kh2wvbqcpcqt67osmqrgtdhqte63d5rp5vjoa7tw7yq` |
+| **Namespace** | OCI Console → Object Storage → Bucket Details | `idlhcuqzdx2c` |
+| **Bucket** | OCI Console → Object Storage → Buckets | `SCI_Conversion` |
+
+**Important**: The Tenancy OCID, Namespace, and Bucket remain the same across Fusion environments since they all write to the same OCI bucket. The User OCID may change if a different OCI user is designated per environment.
+
+#### Step 2: Configure External Storage in BICC
+
+1. In the **target** Fusion instance, navigate to **Tools > BI Cloud Connector Console**
+2. Click **Configure External Storage**
+3. Fill in the following fields:
+
+| Field | Value |
 |---|---|
-| Storage Type | Oracle Cloud Object Storage |
-| Profile Name | Must match `gc_storage_name` in `pkg_bicc_trigger.sql` (currently `GCS_HISTORY_DATA_STORAGE`) |
-| Bucket | Same OCI bucket the platform already uses |
+| Name | `GCS_HISTORY_DATA_STORAGE` (use same name to avoid code changes) |
+| Host | `objectstorage.us-ashburn-1.oraclecloud.com` |
+| Tenancy OCID | *(from Step 1)* |
+| User OCID | *(from Step 1)* |
+| Namespace | `idlhcuqzdx2c` |
+| Bucket | `SCI_Conversion` |
 
-If the storage profile name differs from the current value, update `pkg_bicc_trigger.sql` line 24:
+#### Step 3: Generate and Register the API Signing Key
+
+Each Fusion instance generates its own unique API signing key pair. This is the critical step — the key from DEV4 will not carry over.
+
+1. In the BICC External Storage configuration page, click **Generate** under "API Signing Key"
+   - This creates a new RSA key pair inside the Fusion instance
+   - A **Fingerprint** will appear (e.g., `1a:d5:ae:a1:92:cc:67:6f:0d:50:cc:6b:59:27:73:b4`)
+2. Click **Export** to download the **public key** file (PEM format)
+3. Go to **OCI Console → Identity → Users → select the integration user → API Keys**
+4. Click **Add API Key** → Choose **Paste Public Key**
+5. Paste the contents of the exported PEM file and click **Add**
+6. Verify the fingerprint shown in OCI matches the fingerprint displayed in the BICC console
+
+#### Step 4: Test the Connection
+
+1. Back in the BICC External Storage page, click **Test Connection**
+2. A successful test confirms:
+   - The Tenancy/User/Namespace/Bucket values are correct
+   - The API signing key is registered in OCI for the specified user
+   - The user has read/write access to the bucket
+
+**If the test fails**, check:
+- The User OCID matches the user where you added the API key
+- The API key fingerprints match between BICC and OCI
+- The OCI user has an IAM policy granting Object Storage access (e.g., `Allow group <group> to manage objects in compartment <compartment> where target.bucket.name = 'SCI_Conversion'`)
+
+#### Step 5: Code Reference
+
+If the storage profile name differs from `GCS_HISTORY_DATA_STORAGE`, update `pkg_bicc_trigger.sql`:
 ```sql
 gc_storage_name CONSTANT VARCHAR2(100) := '<new_storage_profile_name>';
 ```
+
+If you keep the same name (recommended), no code changes are needed.
 
 ### 6.4 BIP Reports
 
