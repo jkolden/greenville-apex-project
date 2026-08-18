@@ -9,6 +9,30 @@
 
 ---
 
+## Table of Contents
+
+1. [Purpose](#1-purpose)
+2. [Scope of Change](#2-scope-of-change)
+3. [Prerequisites in the Target Fusion Environment](#3-prerequisites-in-the-target-fusion-environment)
+4. [Update Fusion Instance URL](#4-update-fusion-instance-url)
+5. [Update APEX Web Credential](#5-update-apex-web-credential)
+6. [Fusion Cloud Configuration](#6-fusion-cloud-configuration)
+   - 6.1 [BICC Offering Export / Import](#61-bicc-offering-export--import)
+   - 6.2 [BICC Offerings (Manual Reference)](#62-bicc-offerings-manual-reference)
+   - 6.3 [BICC External Storage](#63-bicc-external-storage)
+   - 6.4 [BIP Reports](#64-bip-reports)
+   - 6.5 [Fusion Security Roles](#65-fusion-security-roles)
+7. [Update APEX REST Data Sources](#7-update-apex-rest-data-sources)
+8. [Clear Fusion-Sourced Data](#8-clear-fusion-sourced-data)
+9. [Re-Extract Routing Phase and State Data](#9-re-extract-routing-phase-and-state-data)
+10. [Update Environment Name in Email Config](#10-update-environment-name-in-email-config)
+11. [IDCS OAuth (26B Data Extract POC Only)](#11-idcs-oauth-26b-data-extract-poc-only)
+12. [Post-Migration Validation](#12-post-migration-validation)
+13. [Quick Reference Checklist](#13-quick-reference-checklist)
+14. [Known Considerations](#14-known-considerations)
+
+---
+
 ## 1. Purpose
 
 This document provides step-by-step instructions for repointing the Greenville County Schools integration platform from one Oracle Fusion Cloud instance to another (e.g., DEV to TEST, or TEST to PROD). The OCI database, APEX application, and all schema objects remain in place — only the Fusion-side configuration and connection details change.
@@ -404,7 +428,7 @@ If the platform ever needs to support multiple Fusion instances simultaneously (
 
 The `REC_ROUTING_PHASE` and `REC_ROUTING_STATE` tables contain Fusion-instance-specific IDs. These IDs will be different in the new Fusion environment.
 
-### 8.1 Steps
+### 9.1 Steps
 
 1. Clear existing routing data:
 ```sql
