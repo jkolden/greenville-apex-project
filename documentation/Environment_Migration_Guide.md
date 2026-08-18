@@ -378,15 +378,34 @@ The 19 APEX REST Data Sources in Shared Components each have a "Remote Server" U
 
 ### 7.3 Run Initial Sync
 
-After updating all REST Data Sources, run a full sync to populate tables from the new instance:
+After updating all REST Data Sources, force a **full refresh** (not incremental) to populate tables from the new instance. The old `apex_rest_source_sync_log` timestamps from the previous instance are still present — passing `p_date_field => NULL` bypasses the incremental filter and pulls all records.
+
+```sql
+-- Force full refresh for all declarative REST sources (bypasses old sync timestamps)
+BEGIN
+  FOR r IN (SELECT module_static_id
+            FROM rest_source_registry
+            WHERE is_active = 'Y') LOOP
+    pkg_rest_sync.sync_source(
+      p_module_static_id => r.module_static_id,
+      p_date_field       => NULL
+    );
+  END LOOP;
+END;
+```
+
+Then load the code-based and dimension sources:
 
 ```sql
 BEGIN
-    pkg_rest_sync.sync_all;
     pkg_rest_recruiting.refresh_all;
     pkg_bicc_dimensions.refresh_all;
 END;
 ```
+
+After this initial full load, subsequent syncs via `pkg_rest_sync.sync_all` will use the new timestamps for incremental mode.
+
+**Note**: `apex_rest_source_sync_log` is an APEX system view — it cannot be truncated. Old log entries from the previous instance are harmless but may appear in the REST Extracts tab history on Page 9003.
 
 ---
 
@@ -403,7 +422,7 @@ Run `documentation/truncate_fusion_data.sql` from APEX SQL Commands. The script 
 | BICC landing tables | `l_hcm_employee_bc`, `l_gl_balance_bc` | ~17 |
 | REST sync tables (declarative) | `account_values_r`, `ap_invoice_hdr_r`, `locations_r` | ~18 |
 | REST sync tables (code-based) | `job_requisitions_r`, `recruiting_candidates_r` | ~6 |
-| Dimension tables | `fbx_dim_job`, `fbx_dim_grade`, `fbx_dim_location` | 4 |
+| Dimension tables | `dim_job_r`, `dim_grade_r`, `dim_location_r` | 3 |
 | BIP report tables | `bip_gallup_assessments`, `bip_questionnaires` | 2 |
 | Routing LOVs | `rec_routing_phase`, `rec_routing_state` | 2 |
 | Security snapshots | `fa_user_accounts`, `fa_user_roles` | 2 |
