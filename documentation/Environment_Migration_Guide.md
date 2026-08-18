@@ -221,7 +221,7 @@ Before opening the BICC console, collect these values from the OCI Console:
 | **Namespace** | OCI Console → Object Storage → Bucket Details | `idlhcuqzdx2c` |
 | **Bucket** | OCI Console → Object Storage → Buckets | `SCI_Conversion` |
 
-**Important**: The Tenancy OCID, Namespace, and Bucket remain the same across Fusion environments since they all write to the same OCI bucket. The User OCID may change if a different OCI user is designated per environment.
+**Important**: Use the **same OCI user** across all Fusion environments. The Tenancy OCID, User OCID, Namespace, and Bucket all remain the same — only the API signing key differs per instance. Using a different OCI user will fail unless that user also has IAM policies granting Object Storage access. Each Fusion instance generates its own key pair, but they all authenticate as the same OCI user — you just add each instance's public key to that user's API Keys.
 
 #### Step 2: Configure External Storage in BICC
 
