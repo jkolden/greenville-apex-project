@@ -313,7 +313,7 @@ Deploy all custom BIP reports to the target Fusion BI Publisher catalog at the s
 | `hcm_object_counts.xdo` | HCM record counts (reconciliation) |
 | `Financials_object_counts.xdo` | FIN record counts (reconciliation) |
 
-**Security Reports** — `/Custom/SCI/Security/Data Validation/XML Reports/`:
+**Security Reports** — `/Custom/SCI/Validation Reports/Security`:
 
 | Report File | Purpose |
 |---|---|
