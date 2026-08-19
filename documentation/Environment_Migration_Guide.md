@@ -9,30 +9,6 @@
 
 ---
 
-## Table of Contents
-
-1. [Purpose](#1-purpose)
-2. [Scope of Change](#2-scope-of-change)
-3. [Prerequisites in the Target Fusion Environment](#3-prerequisites-in-the-target-fusion-environment)
-4. [Update Fusion Instance URL](#4-update-fusion-instance-url)
-5. [Update APEX Web Credential](#5-update-apex-web-credential)
-6. [Fusion Cloud Configuration](#6-fusion-cloud-configuration)
-   - 6.1 [BICC Offering Export / Import](#61-bicc-offering-export--import)
-   - 6.2 [BICC Offerings (Manual Reference)](#62-bicc-offerings-manual-reference)
-   - 6.3 [BICC External Storage](#63-bicc-external-storage)
-   - 6.4 [BIP Reports](#64-bip-reports)
-   - 6.5 [Fusion Security Roles](#65-fusion-security-roles)
-7. [Update APEX REST Data Sources](#7-update-apex-rest-data-sources)
-8. [Clear Fusion-Sourced Data](#8-clear-fusion-sourced-data)
-9. [Re-Extract Routing Phase and State Data](#9-re-extract-routing-phase-and-state-data)
-10. [Update Environment Name in Email Config](#10-update-environment-name-in-email-config)
-11. [IDCS OAuth (26B Data Extract POC Only)](#11-idcs-oauth-26b-data-extract-poc-only)
-12. [Post-Migration Validation](#12-post-migration-validation)
-13. [Quick Reference Checklist](#13-quick-reference-checklist)
-14. [Known Considerations](#14-known-considerations)
-
----
-
 ## 1. Purpose
 
 This document provides step-by-step instructions for repointing the Greenville County Schools integration platform from one Oracle Fusion Cloud instance to another (e.g., DEV to TEST, or TEST to PROD). The OCI database, APEX application, and all schema objects remain in place — only the Fusion-side configuration and connection details change.
@@ -107,6 +83,7 @@ The following packages derive their URL from `pkg_bicc_common.gc_fa_base_url` at
 | `rec_email/pkg_rec_email.sql` | `gc_fa_base_url` | 10 | Placeholder `https://<FUSION_HOST_DEV>` — should be migrated to reference `pkg_bicc_common.gc_fa_base_url` |
 | `security/pkg_app_security.sql` | `gc_fa_base_url` | 66 | Placeholder `https://<FUSION_HOST_DEV>` — should be migrated to reference `pkg_bicc_common.gc_fa_base_url` |
 | `data_extract/pkg_data_extract.sql` | `gc_base_url` | 12 | 26B POC only — uses IDCS OAuth (see Section 10) |
+| `bpm_tasks/pkg_bpm_tasks.sql` | `gc_base_url` | 12 | **Intentionally independent** — may target a different Fusion instance than the rest of the app. Has its own credential (`gcs_reports_dev4`). Update only when BPM workflow tasks should move to the new instance. Also update `gc_credential` and `gc_user_credential` constants to match the target instance's Web Credentials. |
 
 After updating `pkg_bicc_common.sql`, recompile it and then recompile all dependent packages.
 
@@ -154,7 +131,21 @@ SELECT apex_web_service.make_rest_request(
 
 A successful response confirms the credential is working. A 401 means bad credentials; a 403 means the user lacks required roles.
 
-### 5.2 Packages That Use This Credential
+### 5.2 Update Application Settings
+
+Two Application Settings store Basic Auth credentials used by packages that cannot use APEX Web Credentials (due to SOAP custom headers or OAuth conflicts):
+
+1. Open APEX > Shared Components > Application Settings
+2. Update these settings with the new Fusion instance's integration user credentials:
+
+| Setting | Used By | Why Basic Auth? |
+|---|---|---|
+| `BICC_FUSION_USERNAME` | `pkg_bicc_trigger` (BICC SOAP extract submission) | SOAP WS-Addressing headers conflict with OAuth token exchange |
+| `BICC_FUSION_PASSWORD` | `pkg_rec_move` (applicant move action) | Custom `Content-Type` header corrupts OAuth flow |
+
+**Why separate from Web Credential?** These packages use `apex_web_service.make_rest_request` with `p_username`/`p_password` parameters instead of `p_credential_static_id`. This is required when the package sets custom request headers (like WS-Addressing for SOAP or `application/vnd.oracle.adf.action+json`) that APEX inadvertently applies to its internal OAuth token requests, causing authentication failures.
+
+### 5.3 Packages That Use This Credential
 
 All of these will automatically pick up the updated credential — no code changes needed:
 
@@ -232,70 +223,18 @@ If the import approach is not available or a manual review is needed, the 24 dat
 
 ### 6.3 BICC External Storage
 
-The BICC console in the new Fusion instance needs an External Storage profile that points to the **existing** OCI Object Storage bucket (`SCI_Conversion`). This profile establishes a trust relationship between Fusion and OCI Object Storage using an API signing key.
+The BICC console in the new Fusion instance needs an External Storage profile that points to the **existing** OCI Object Storage bucket (`SCI_Conversion`).
 
-#### Step 1: Gather OCI Identifiers
-
-Before opening the BICC console, collect these values from the OCI Console:
-
-| Setting | Where to Find | Current DEV4 Value |
-|---|---|---|
-| **Tenancy OCID** | OCI Console → Administration → Tenancy Details | `ocid1.tenancy.oc1..aaaaaaahs3wjpvh4nniu2jiobn6maups5jysgjkr3igkevr2gt6vzpjp73a` |
-| **User OCID** | OCI Console → Identity & Security → Domains → *your domain* → Users → select the integration user | `ocid1.user.oc1..aaaaaaaaehhrizn73kh2wvbqcpcqt67osmqrgtdhqte63d5rp5vjoa7tw7yq` |
-| **Namespace** | OCI Console → Object Storage → Bucket Details | `idlhcuqzdx2c` |
-| **Bucket** | OCI Console → Object Storage → Buckets | `SCI_Conversion` |
-
-**Important**: Use the **same OCI user** across all Fusion environments. The Tenancy OCID, User OCID, Namespace, and Bucket all remain the same — only the API signing key differs per instance. Using a different OCI user will fail unless that user also has IAM policies granting Object Storage access. Each Fusion instance generates its own key pair, but they all authenticate as the same OCI user — you just add each instance's public key to that user's API Keys.
-
-#### Step 2: Configure External Storage in BICC
-
-1. In the **target** Fusion instance, navigate to **Tools > BI Cloud Connector Console**
-2. Click **Configure External Storage**
-3. Fill in the following fields:
-
-| Field | Value |
+| Setting | Value |
 |---|---|
-| Name | `GCS_HISTORY_DATA_STORAGE` (use same name to avoid code changes) |
-| Host | `objectstorage.us-ashburn-1.oraclecloud.com` |
-| Tenancy OCID | *(from Step 1)* |
-| User OCID | *(from Step 1)* |
-| Namespace | `idlhcuqzdx2c` |
-| Bucket | `SCI_Conversion` |
+| Storage Type | Oracle Cloud Object Storage |
+| Profile Name | Must match `gc_storage_name` in `pkg_bicc_trigger.sql` (currently `GCS_HISTORY_DATA_STORAGE`) |
+| Bucket | Same OCI bucket the platform already uses |
 
-#### Step 3: Generate and Register the API Signing Key
-
-Each Fusion instance generates its own unique API signing key pair. This is the critical step — the key from DEV4 will not carry over.
-
-1. In the BICC External Storage configuration page, click **Generate** under "API Signing Key"
-   - This creates a new RSA key pair inside the Fusion instance
-   - A **Fingerprint** will appear (e.g., `1a:d5:ae:a1:92:cc:67:6f:0d:50:cc:6b:59:27:73:b4`)
-2. Click **Export** to download the **public key** file (PEM format)
-3. Go to **OCI Console → Identity & Security → Domains → *your domain* → Users → select the integration user → API Keys**
-4. Click **Add API Key** → Choose **Paste Public Key**
-5. Paste the contents of the exported PEM file and click **Add**
-6. Verify the fingerprint shown in OCI matches the fingerprint displayed in the BICC console
-
-#### Step 4: Test the Connection
-
-1. Back in the BICC External Storage page, click **Test Connection**
-2. A successful test confirms:
-   - The Tenancy/User/Namespace/Bucket values are correct
-   - The API signing key is registered in OCI for the specified user
-   - The user has read/write access to the bucket
-
-**If the test fails**, check:
-- The User OCID matches the user where you added the API key
-- The API key fingerprints match between BICC and OCI
-- The OCI user has an IAM policy granting Object Storage access (e.g., `Allow group <group> to manage objects in compartment <compartment> where target.bucket.name = 'SCI_Conversion'`)
-
-#### Step 5: Code Reference
-
-If the storage profile name differs from `GCS_HISTORY_DATA_STORAGE`, update `pkg_bicc_trigger.sql`:
+If the storage profile name differs from the current value, update `pkg_bicc_trigger.sql` line 24:
 ```sql
 gc_storage_name CONSTANT VARCHAR2(100) := '<new_storage_profile_name>';
 ```
-
-If you keep the same name (recommended), no code changes are needed.
 
 ### 6.4 BIP Reports
 
@@ -313,7 +252,7 @@ Deploy all custom BIP reports to the target Fusion BI Publisher catalog at the s
 | `hcm_object_counts.xdo` | HCM record counts (reconciliation) |
 | `Financials_object_counts.xdo` | FIN record counts (reconciliation) |
 
-**Security Reports** — `/Custom/SCI/Validation Reports/Security`:
+**Security Reports** — `/Custom/SCI/Security/Data Validation/XML Reports/`:
 
 | Report File | Purpose |
 |---|---|
@@ -378,76 +317,59 @@ The 19 APEX REST Data Sources in Shared Components each have a "Remote Server" U
 
 ### 7.3 Run Initial Sync
 
-After updating all REST Data Sources, force a **full refresh** (not incremental) to populate tables from the new instance. The old `apex_rest_source_sync_log` timestamps from the previous instance are still present — passing `p_date_field => NULL` bypasses the incremental filter and pulls all records.
-
-```sql
--- Force full refresh for all declarative REST sources (bypasses old sync timestamps)
-BEGIN
-  FOR r IN (SELECT module_static_id
-            FROM rest_source_registry
-            WHERE is_active = 'Y') LOOP
-    pkg_rest_sync.sync_source(
-      p_module_static_id => r.module_static_id,
-      p_date_field       => NULL
-    );
-  END LOOP;
-END;
-```
-
-Then load the code-based and dimension sources:
+After updating all REST Data Sources, run a full sync to populate tables from the new instance:
 
 ```sql
 BEGIN
+    pkg_rest_sync.sync_all;
     pkg_rest_recruiting.refresh_all;
     pkg_bicc_dimensions.refresh_all;
 END;
 ```
 
-After this initial full load, subsequent syncs via `pkg_rest_sync.sync_all` will use the new timestamps for incremental mode.
+---
 
-**Note**: `apex_rest_source_sync_log` is an APEX system view — it cannot be truncated. Old log entries from the previous instance are harmless but may appear in the REST Extracts tab history on Page 9003.
+## 7a. Clean OCI Object Storage and Tracking Data
+
+The OCI bucket (`SCI_Conversion`) contains BICC extract ZIPs, staged CSVs, and status files from the previous Fusion instance. These must be purged before loading from the new instance to avoid mixing data from different environments.
+
+### 7a.1 Purge BICC Files from Object Storage
+
+Delete your BICC pipeline files while preserving other teams' data (e.g., `FileToTable/`, `ERP/`):
+
+```sql
+BEGIN
+    FOR r IN (
+        SELECT object_name
+        FROM dbms_cloud.list_objects('OBJ_STORE_CRED_JK',
+            'https://objectstorage.us-ashburn-1.oraclecloud.com/n/idlhcuqzdx2c/b/SCI_Conversion/o/')
+        WHERE (object_name LIKE 'file\_%' ESCAPE '\' AND object_name LIKE '%.zip')
+           OR object_name LIKE 'staging/%'
+           OR object_name LIKE 'EXTRACT\_STATUS\_DATA\_%' ESCAPE '\'
+           OR object_name LIKE 'MANIFEST%'
+           OR object_name LIKE '%\_unzipped.csv' ESCAPE '\'
+    ) LOOP
+        dbms_cloud.delete_object('OBJ_STORE_CRED_JK',
+            'https://objectstorage.us-ashburn-1.oraclecloud.com/n/idlhcuqzdx2c/b/SCI_Conversion/o/' || r.object_name);
+    END LOOP;
+END;
+```
+
+### 7a.2 Truncate Tracking Table
+
+```sql
+TRUNCATE TABLE bicc_files;
+```
+
+This clears file discovery metadata from the old instance. New files from the target instance will be tracked fresh.
 
 ---
 
-## 8. Clear Fusion-Sourced Data
-
-Since the ATP database does not stripe data by Fusion instance, all tables that receive data from BICC, REST, or BIP must be truncated before loading from a new instance. Otherwise dev4 data will be mixed with dev2 data.
-
-Run `documentation/truncate_fusion_data.sql` from APEX SQL Commands. The script truncates ~100 tables across these categories:
-
-| Category | Examples | Count |
-|---|---|---|
-| BICC final tables | `hcm_employee_bc`, `gl_balance_bc`, `po_hdr_bc` | ~21 |
-| BICC staging tables | `s_hcm_employee_bc`, `s_gl_balance_bc` | ~17 |
-| BICC landing tables | `l_hcm_employee_bc`, `l_gl_balance_bc` | ~17 |
-| REST sync tables (declarative) | `account_values_r`, `ap_invoice_hdr_r`, `locations_r` | ~18 |
-| REST sync tables (code-based) | `job_requisitions_r`, `recruiting_candidates_r` | ~6 |
-| Dimension tables | `dim_job_r`, `dim_grade_r`, `dim_location_r` | 3 |
-| BIP report tables | `bip_gallup_assessments`, `bip_questionnaires` | 2 |
-| Routing LOVs | `rec_routing_phase`, `rec_routing_state` | 2 |
-| Security snapshots | `fa_user_accounts`, `fa_user_roles` | 2 |
-| OTL tables | `otl_time_record`, `otl_time_attribute` | 2 |
-| Load logs & tracking | `bicc_load_job`, `bicc_files`, `bip_load_log`, `recon_*` | 6 |
-
-**Tables intentionally NOT cleared** (config, user-entered data, metadata):
-- `bicc_loader_map`, `bicc_datastore`, `rest_source_registry`, `recon_source_config`
-- `email_config` (update `ENVIRONMENT_NAME` separately — see Section 10)
-- `email_message`, `email_notification_log` (send history — clear if desired)
-- `rec_dept_grant`, `app_user_roles`, `candidate_note`, `applicant_note`, `applicant_ranking`
-- `app_ticket_*`, `rec_content_library`, `ref_correction*`
-- `view_column_crosswalk` (regenerated by `refresh_view_crosswalk`)
-
-### Future Consideration: Instance Striping
-
-If the platform ever needs to support multiple Fusion instances simultaneously (e.g., running dev2 and prod side-by-side), a `SOURCE_INSTANCE` column could be added to all data tables. This would eliminate the need to truncate when switching instances but would require changes to every MERGE statement, view, and report query. For now, the single-instance model with truncate-on-switch is simpler.
-
----
-
-## 9. Re-Extract Routing Phase and State Data
+## 8. Re-Extract Routing Phase and State Data
 
 The `REC_ROUTING_PHASE` and `REC_ROUTING_STATE` tables contain Fusion-instance-specific IDs. These IDs will be different in the new Fusion environment.
 
-### 9.1 Steps
+### 8.1 Steps
 
 1. Clear existing routing data:
 ```sql
@@ -464,7 +386,7 @@ COMMIT;
 
 ---
 
-## 10. Update Environment Name in Email Config
+## 9. Update Environment Name in Email Config
 
 Update the `EMAIL_CONFIG` table so notification emails reflect the correct environment:
 
@@ -476,7 +398,7 @@ COMMIT;
 
 ---
 
-## 11. IDCS OAuth (26B Data Extract POC Only)
+## 10. IDCS OAuth (26B Data Extract POC Only)
 
 If the 26B Data Extract feature is in use, update `data_extract/pkg_data_extract.plb` with the target environment's IDCS credentials:
 
@@ -491,9 +413,9 @@ Recompile the package body after updating.
 
 ---
 
-## 12. Post-Migration Validation
+## 11. Post-Migration Validation
 
-### 12.1 Connectivity Tests
+### 11.1 Connectivity Tests
 
 ```sql
 -- Test Fusion REST API
@@ -507,25 +429,25 @@ SELECT apex_web_service.make_rest_request(
 SELECT pkg_bip_soap.run_report_xml('/Custom/SCI/BIP/hcm_object_counts.xdo') FROM dual;
 ```
 
-### 12.2 BICC Pipeline
+### 11.2 BICC Pipeline
 
 1. Submit a BICC extract via Page 9003 "BICC Manual Trigger" tab
 2. Verify the extract completes successfully (check status)
 3. Load one entity (e.g., HCM_EMPLOYEE) via "BICC Extract Files" tab
 4. Confirm row count: `SELECT COUNT(*) FROM HCM_EMPLOYEE_BC;`
 
-### 12.3 REST Sync
+### 11.3 REST Sync
 
 1. Trigger a single REST source from Page 9003 "REST Manual Trigger" tab
 2. Verify rows appear in the corresponding table
 3. Run `pkg_rest_recruiting.refresh_all` to test code-based loaders
 
-### 12.4 BIP Reports
+### 11.4 BIP Reports
 
 1. Load Gallup assessments from Page 9003 "BIP Manual Trigger" tab
 2. Check `BIP_LOAD_LOG` for SUCCESS status
 
-### 12.5 Reconciliation
+### 11.5 Reconciliation
 
 Run a reconciliation to confirm record counts align with the new Fusion instance:
 
@@ -539,13 +461,13 @@ END;
 
 Review results on the "Reconciliation" tab of Page 9003.
 
-### 12.6 Recruiting Workflow
+### 11.6 Recruiting Workflow
 
 1. Verify requisitions and candidates loaded from the new instance
 2. Test an applicant move action
 3. Confirm questionnaire data populated via BICC
 
-### 12.7 Security
+### 11.7 Security
 
 1. Log in as a non-admin user
 2. Verify VPD restricts `RECRUITING_REPORT_V` to authorized departments
@@ -553,27 +475,30 @@ Review results on the "Reconciliation" tab of Page 9003.
 
 ---
 
-## 13. Quick Reference Checklist
+## 12. Quick Reference Checklist
 
 | Step | Action | Where |
 |---|---|---|
 | 1 | Replace Fusion hostname in `pkg_bicc_common.sql` | 1 file (Section 4.2), then recompile dependents |
 | 2 | Recompile all dependent packages | APEX SQL Commands |
 | 3 | Update APEX Web Credential `gcs_reports` | Shared Components > Web Credentials |
+| 3a | Update Application Settings (`BICC_FUSION_USERNAME`/`PASSWORD`) | Shared Components > Application Settings (Section 5.2) |
+| 3b | Update `pkg_bpm_tasks` URL and credentials (if moving BPM) | `bpm_tasks/pkg_bpm_tasks.sql` — `gc_base_url`, `gc_credential`, `gc_user_credential` |
 | 4 | Update APEX REST Data Source remote servers | Shared Components > REST Data Sources (19 sources) |
 | 5 | Import BICC offering artifacts from source ZIP | Fusion BICC console (Section 6.1) |
 | 6 | Create BICC External Storage profile | Fusion BICC console |
 | 7 | Deploy BIP reports to new Fusion catalog | Fusion BI Publisher |
 | 8 | Provision integration user with roles | Fusion Security Console |
-| 9 | Truncate all Fusion-sourced data tables | `documentation/truncate_fusion_data.sql` (Section 8) |
-| 10 | Re-extract routing phases/states | BICC extract from new instance |
-| 11 | Update ENVIRONMENT_NAME in email_config | SQL UPDATE |
-| 12 | Run initial data sync | `pkg_rest_sync.sync_all` + `refresh_all` calls |
-| 13 | Run validation tests | Section 12 checklist |
+| 8a | Purge old BICC files from OCI Object Storage | PL/SQL loop (Section 7a.1) |
+| 8b | Truncate `bicc_files` tracking table | `TRUNCATE TABLE bicc_files` (Section 7a.2) |
+| 9 | Re-extract routing phases/states | BICC extract from new instance |
+| 10 | Update ENVIRONMENT_NAME in email_config | SQL UPDATE |
+| 11 | Run initial data sync | `pkg_rest_sync.sync_all` + `refresh_all` calls |
+| 12 | Run validation tests | Section 11 checklist |
 
 ---
 
-## 14. Known Considerations
+## 13. Known Considerations
 
 ### GL Segment Value Set Names
 The 9 GL segment REST data sources reference Greenville-specific Value Set names (e.g., `GCS_GL_ACCOUNT`, `GCS_GL_FUND`). If the target environment uses different names, the REST Data Source URLs must be updated.
