@@ -316,22 +316,122 @@ END;
 
 ## 8. Re-Extract Routing Phase and State Data
 
-The `REC_ROUTING_PHASE` and `REC_ROUTING_STATE` tables contain Fusion-instance-specific IDs. These IDs will be different in the new Fusion environment.
+The `REC_ROUTING_PHASE` (24 phases) and `REC_ROUTING_STATE` (103 states) tables contain recruiting process lifecycle definitions used as LOVs for the applicant move action on Page 24. Custom phase/state IDs are **Fusion-instance-specific** — seeded Oracle IDs (e.g., 11=New, 1001=To be Reviewed) remain the same, but custom IDs (e.g., HR Screening, Qualified, Pre-Offer) will be different in the new environment.
 
-### 8.1 Steps
+The `IRC_ROUTING_STEPS_STG` table (routing step hierarchy, ~1600 rows) is loaded separately via the `RoutingStepPVO` BICC datastore and must also be refreshed.
 
-1. Clear existing routing data:
-```sql
-DELETE FROM rec_routing_state;
-DELETE FROM rec_routing_phase;
-COMMIT;
+### 8.1 Run One-Off BICC Extracts
+
+These PVOs are **not** part of the daily BICC pipeline. Run them as one-off manual extracts from the new Fusion BICC Console:
+
+| BICC Module | Data Store / PVO | Purpose |
+|---|---|---|
+| `HcmRecProcessLifecycleAM` | `RoutingStepPhasePVO` | Phase definitions (e.g., New, Screening, Offer, HR) |
+| `HcmRecProcessLifecycleAM` | `RoutingStepStatePVO` | State definitions (e.g., To be Reviewed, Under Consideration) |
+| `HcmRecProcessLifecycleAM` | `RoutingStepPVO` | Routing step hierarchy (phase→state mapping) |
+
+1. In the target Fusion instance, open **BICC Console**
+2. Create or select the `HcmRecProcessLifecycleAM` offering
+3. Run the extract — it will produce CSV files in Object Storage
+4. Download the three CSV files to `DDL/Phase and State Data/`
+
+### 8.2 Regenerate the Reload Script
+
+The Python script below parses the Phase and State PVO CSVs and generates `reload_routing_lookups.sql` with environment-specific INSERT statements:
+
+```bash
+cd DDL
+python3 -c "
+import csv
+
+def q(s):
+    if s is None or s == '': return 'NULL'
+    return \"'\" + s.replace(\"'\", \"''\") + \"'\"
+
+def qn(s):
+    if s is None or s == '': return 'NULL'
+    return s
+
+# --- Parse Phase CSV ---
+phases = {}
+with open('Phase and State Data/<phase_csv_filename>.csv', 'r') as f:
+    for row in csv.DictReader(f):
+        pid = row['PHASEID']
+        if pid not in phases:
+            code = row['CODE']
+            name = row['PHASETRANSLATIONPEONAME']
+            desc = row['PHASETRANSLATIONPEODESCRIPTION']
+            seq = row['SEQUENCENUMBER']
+            if code.startswith('REQUISITION'): ptype = 'REQUISITION'
+            elif code.startswith('CANDIDATE'): ptype = 'CANDIDATE'
+            elif code in ('REGISTRATION','ATTENDANCE'): ptype = 'EVENT'
+            else: ptype = 'APPLICATION'
+            phases[pid] = (pid, code, name, desc, seq, ptype)
+
+# --- Parse State CSV ---
+states = {}
+with open('Phase and State Data/<state_csv_filename>.csv', 'r') as f:
+    for row in csv.DictReader(f):
+        sid = row['STATEID']
+        if sid not in states:
+            code = row['CODE']
+            name = row['STATETRANSLATIONPEONAME']
+            desc = row['STATETRANSLATIONPEODESCRIPTION']
+            pub_id = row['PUBLICSTATEID'] or None
+            pub_name = row['PUBLICSTATETRANSLATIONPEONAME'] or None
+            if code.startswith('REQUISITION'): stype = 'REQUISITION'
+            elif 441 <= int(sid) <= 451: stype = 'EVENT'
+            elif 551 <= int(sid) <= 884: stype = 'CANDIDATE'
+            else: stype = 'APPLICATION'
+            states[sid] = (sid, code, name, desc, pub_id, pub_name, stype)
+
+# --- Generate SQL ---
+with open('reload_routing_lookups.sql', 'w') as f:
+    f.write('DELETE FROM rec_routing_phase;\n\n')
+    for p in sorted(phases.values(), key=lambda x: ({'APPLICATION':0,'REQUISITION':1,'CANDIDATE':2,'EVENT':3}[x[5]], float(x[0]))):
+        f.write(f\"INSERT INTO rec_routing_phase (phase_id, phase_code, phase_name, phase_desc, seq_num, phase_type)\n\")
+        f.write(f\"VALUES ({p[0]}, {q(p[1])}, {q(p[2])}, {q(p[3]) if p[3] else 'NULL'}, {p[4]}, {q(p[5])});\n\n\")
+    f.write('DELETE FROM rec_routing_state;\n\n')
+    for s in sorted(states.values(), key=lambda x: ({'APPLICATION':0,'REQUISITION':1,'CANDIDATE':2,'EVENT':3}[x[6]], float(x[0]))):
+        f.write(f\"INSERT INTO rec_routing_state (state_id, state_code, state_name, state_desc, public_state_id, public_state_name, state_type)\n\")
+        f.write(f\"VALUES ({s[0]}, {q(s[1])}, {q(s[2])}, {q(s[3]) if s[3] else 'NULL'}, {qn(s[4])}, {q(s[5]) if s[5] else 'NULL'}, {q(s[6])});\n\n\")
+    f.write('COMMIT;\n')
+print('Generated reload_routing_lookups.sql')
+"
 ```
 
-2. Re-extract from the new Fusion instance using BICC:
-   - `RoutingStepPhasePVO` — loads into `rec_routing_phase`
-   - `RoutingStepStatePVO` — loads into `rec_routing_state`
+Replace `<phase_csv_filename>` and `<state_csv_filename>` with the actual filenames from the BICC extract.
 
-3. Verify the applicant move workflow still functions by testing a move on Page 9003.
+### 8.3 Execute the Reload Script
+
+Run `reload_routing_lookups.sql` in APEX SQL Commands. This DELETEs existing rows and INSERTs the new environment's phase and state definitions.
+
+### 8.4 Reload Routing Step Hierarchy
+
+The `IRC_ROUTING_STEPS_STG` table must also be refreshed from the `RoutingStepPVO` extract. This table provides the phase-to-state mapping used by the State LOV on Page 24. Load it using the same method used in the original setup (BICC pipeline or manual load).
+
+### 8.5 Verify
+
+1. Confirm row counts:
+```sql
+SELECT 'PHASE' t, COUNT(*) cnt FROM rec_routing_phase
+UNION ALL SELECT 'STATE', COUNT(*) FROM rec_routing_state
+UNION ALL SELECT 'ROUTING_STEPS', COUNT(*) FROM irc_routing_steps_stg;
+```
+   Expected: ~24 phases, ~103 states, ~1600 routing steps.
+
+2. Test the Phase LOV on Page 24 — should return APPLICATION phases (New, Screening, HR Screening, Qualified, etc.)
+3. Select a phase and confirm the State LOV populates (not all phases have states — this is normal for custom phases without state-level routing)
+4. Test an actual applicant move to confirm end-to-end functionality
+
+### 8.6 Files Reference
+
+| File | Purpose |
+|---|---|
+| `DDL/rec_routing_phase.sql` | CREATE TABLE DDL for phase lookup |
+| `DDL/rec_routing_state.sql` | CREATE TABLE DDL for state lookup |
+| `DDL/reload_routing_lookups.sql` | DELETE + INSERT script (environment-specific, regenerated per migration) |
+| `DDL/Phase and State Data/` | Raw BICC CSV extracts used to generate the reload script |
 
 ---
 
