@@ -37,42 +37,42 @@ COMMENT ON COLUMN rest_source_registry.loader_procedure IS 'Fully qualified PL/S
 -- SEED DATA
 -- =============================================================================
 
--- GL Segment Values (9 sources)
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_account_values', 'Account Values', 'GL', 'LastUpdateDate', 'INCREMENTAL');
+-- GL Segment Values (9 sources) — DEPRECATED 2026-10-01
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_account_values', 'Account Values', 'GL', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_accounting_scenario_values', 'Accounting Scenario Values', 'GL', 'LastUpdateDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_accounting_scenario_values', 'Accounting Scenario Values', 'GL', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_activity_values', 'Activity Values', 'GL', 'LastUpdateDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_activity_values', 'Activity Values', 'GL', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_fund_values', 'Fund Values', 'GL', 'LastUpdateDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_fund_values', 'Fund Values', 'GL', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_function_values', 'Function Values', 'GL', 'LastUpdateDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_function_values', 'Function Values', 'GL', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_grant_values', 'Grant Values', 'GL', 'LastUpdateDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_grant_values', 'Grant Values', 'GL', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_initiative_values', 'Initiative Values', 'GL', 'LastUpdateDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_initiative_values', 'Initiative Values', 'GL', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_interfund_values', 'Interfund Values', 'GL', 'LastUpdateDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_interfund_values', 'Interfund Values', 'GL', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_location_values', 'Location Values', 'GL', 'LastUpdateDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_location_values', 'Location Values', 'GL', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
--- Financials (2 sources)
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_invoices', 'AP Invoices', 'FIN', 'LastUpdateDate', 'INCREMENTAL');
+-- Financials (2 sources) — DEPRECATED 2026-10-01
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_invoices', 'AP Invoices', 'FIN', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_receivable_transactions', 'Receivable Transactions', 'FIN', 'LastUpdateDate', 'INCREMENTAL');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_receivable_transactions', 'Receivable Transactions', 'FIN', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
--- HCM (5 sources)
+-- HCM/Recruiting (4 sources — active)
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
     ('rest_sync_job_applications', 'Job Applications', 'HCM', 'LastUpdateDate', 'INCREMENTAL');
 
@@ -80,26 +80,27 @@ INSERT INTO rest_source_registry (module_static_id, display_name, module_code, d
     ('rest_sync_job_requisitions', 'Job Requisitions', 'HCM', NULL, 'CODE_BASED', 'pkg_rest_recruiting.load_requisitions');
 
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_absences', 'Absences', 'HCM', 'lastUpdateDate', 'INCREMENTAL');
-
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
     ('rest_sync_positions', 'Positions', 'HCM', 'LastUpdateDate', 'INCREMENTAL');
-
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_salaries', 'Salaries', 'HCM', 'LastUpdateDate', 'INCREMENTAL');
 
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, loader_procedure) VALUES
     ('rest_sync_recruitingcandidates', 'Recruiting Candidates', 'HCM', NULL, 'CODE_BASED', 'pkg_rest_recruiting.load_candidates');
 
--- Procurement (1 source)
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_purchase_orders', 'Purchase Orders', 'PRC', 'LastUpdateDate', 'INCREMENTAL');
+-- HCM — DEPRECATED 2026-10-01
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_absences', 'Absences', 'HCM', 'lastUpdateDate', 'INCREMENTAL', 'N');
 
--- Full-only sources (LastUpdateDate not queryable via REST)
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_locations', 'Locations', 'HCM', NULL, 'FULL_ONLY');
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_salaries', 'Salaries', 'HCM', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_suppliers', 'Suppliers', 'PRC', NULL, 'FULL_ONLY');
+-- Procurement — DEPRECATED 2026-10-01
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_purchase_orders', 'Purchase Orders', 'PRC', 'LastUpdateDate', 'INCREMENTAL', 'N');
+
+-- Full-only sources — DEPRECATED 2026-10-01
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_locations', 'Locations', 'HCM', NULL, 'FULL_ONLY', 'N');
+
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_suppliers', 'Suppliers', 'PRC', NULL, 'FULL_ONLY', 'N');
 
 COMMIT;
