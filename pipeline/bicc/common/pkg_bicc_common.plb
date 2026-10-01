@@ -114,30 +114,42 @@ create or replace package body pkg_bicc_common as
         merge into bicc_files t
         using (
             select file_name,
+                   file_size,
+                   file_size_kb,
+                   last_modified,
+                   file_timestamp,
                    load_type,
-                   -- Parse timestamp from filename: -YYYYMMDD_HH24MISS.zip
-                   to_timestamp(
-                       regexp_substr(file_name, '-(\d{8}_\d{6})\.zip', 1, 1, 'i', 1),
-                       'YYYYMMDD_HH24MISS'
-                   ) as file_timestamp
+                   loader_available
             from bicc_files_v
         ) s
         on (t.file_name = s.file_name)
 
         when matched then update set
-            t.load_type      = s.load_type,
-            t.file_timestamp = nvl(t.file_timestamp, s.file_timestamp),
-            t.refreshed_ts   = systimestamp
+            t.load_type        = s.load_type,
+            t.loader_available = s.loader_available,
+            t.file_size        = nvl(t.file_size, s.file_size),
+            t.file_size_kb     = nvl(t.file_size_kb, s.file_size_kb),
+            t.last_modified    = nvl(t.last_modified, s.last_modified),
+            t.file_timestamp   = nvl(t.file_timestamp, s.file_timestamp),
+            t.refreshed_ts     = systimestamp
 
         when not matched then insert (
             file_name,
-            load_type,
+            file_size,
+            file_size_kb,
+            last_modified,
             file_timestamp,
+            load_type,
+            loader_available,
             refreshed_ts
         ) values (
             s.file_name,
-            s.load_type,
+            s.file_size,
+            s.file_size_kb,
+            s.last_modified,
             s.file_timestamp,
+            s.load_type,
+            s.loader_available,
             systimestamp
         );
 
@@ -236,9 +248,15 @@ create or replace package body pkg_bicc_common as
 
         -- 1) Refresh the file list
         refresh_bicc_files;
+        commit;  -- protect file list from rollback in downstream REST calls
 
         -- 2) Refresh REST-loaded recruiting data (Requisitions, Applications)
-        pkg_rest_recruiting.refresh_all;
+        --    Wrapped so a REST failure does not abort the BICC file pipeline
+        begin
+            pkg_rest_recruiting.refresh_all;
+        exception
+            when others then null;
+        end;
 
         -- 3) For each load_type, pick the latest file from "today PT", but only if not already processed
         for r in (
@@ -253,7 +271,7 @@ create or replace package body pkg_bicc_common as
                     ) rn
                 from bicc_files f
                 where f.loader_available = 'Y'
-                    and f.load_type in ('AP_INVOICE_HDR','PO_HDR','PO_LINES','SUPPLIER_HDR','HCM_EMPLOYEE','HCM_POSITION','HCM_ASSIGNMENT','HCM_SALARY','POS_CUSTOM_FLEX','GL_CODE_COMB','GL_BALANCE','QSTNR_ANSWER','QSTNR_QUESTION','QSTNR_RESPONSE','AP_DISBURSEMENT','AP_INV_APPLICATION')
+                    and f.load_type in ('HCM_EMPLOYEE','HCM_POSITION','HCM_ASSIGNMENT','HCM_SALARY','POS_CUSTOM_FLEX','QSTNR_ANSWER','QSTNR_QUESTION','QSTNR_RESPONSE')
 
                     -- look back 1 extra day so the 7 AM job catches files that
                     -- arrived after yesterday's run; dedup checks below prevent
@@ -261,10 +279,7 @@ create or replace package body pkg_bicc_common as
                     and f.file_timestamp >= l_utc_start_ts - interval '1' day
                     and f.file_timestamp <  l_utc_end_ts
 
-                    --  exclusions
-                    and lower(f.file_name) not like '%poheaderdffpublic%'
-                    and lower(f.file_name) not like '%suppliersiteextract%'
-                    and lower(f.file_name) not like '%invoiceheaderextract%'
+                    --  exclusions (none currently needed)
             )
             select c.file_name, c.load_type, c.file_timestamp
             from candidates c
@@ -295,44 +310,28 @@ create or replace package body pkg_bicc_common as
 
             -- Stage (your functions insert into BICC_LOAD_JOB)
             case r.load_type
-                when 'AP_INVOICE_HDR' then l_job_id := pkg_bicc_ap_invoice_hdr.load_and_preview(r.file_name);
-                when 'PO_HDR'         then l_job_id := pkg_bicc_po_hdr.load_and_preview(r.file_name);
-                when 'PO_LINES'       then l_job_id := pkg_bicc_po_lines.load_and_preview(r.file_name);
-                when 'SUPPLIER_HDR'   then l_job_id := pkg_bicc_supplier_hdr.load_and_preview(r.file_name);
-                when 'HCM_EMPLOYEE'   then l_job_id := pkg_bicc_hcm_employee.load_and_preview(r.file_name);
-                when 'HCM_POSITION'   then l_job_id := pkg_bicc_hcm_position.load_and_preview(r.file_name);
+                when 'HCM_EMPLOYEE'    then l_job_id := pkg_bicc_hcm_employee.load_and_preview(r.file_name);
+                when 'HCM_POSITION'    then l_job_id := pkg_bicc_hcm_position.load_and_preview(r.file_name);
                 when 'HCM_ASSIGNMENT'  then l_job_id := pkg_bicc_hcm_assignment.load_and_preview(r.file_name);
                 when 'HCM_SALARY'      then l_job_id := pkg_bicc_hcm_salary.load_and_preview(r.file_name);
                 when 'POS_CUSTOM_FLEX' then l_job_id := pkg_bicc_pos_custom_flex.load_and_preview(r.file_name);
-                when 'GL_CODE_COMB'    then l_job_id := pkg_bicc_gl_code_comb.load_and_preview(r.file_name);
-                when 'GL_BALANCE'      then l_job_id := pkg_bicc_gl_balance.load_and_preview(r.file_name);
-                when 'QSTNR_ANSWER'   then l_job_id := pkg_bicc_qstnr_answer.load_and_preview(r.file_name);
-                when 'QSTNR_QUESTION' then l_job_id := pkg_bicc_qstnr_question.load_and_preview(r.file_name);
-                when 'QSTNR_RESPONSE'      then l_job_id := pkg_bicc_qstnr_response.load_and_preview(r.file_name);
-                when 'AP_DISBURSEMENT'     then l_job_id := pkg_bicc_ap_disbursement.load_and_preview(r.file_name);
-                when 'AP_INV_APPLICATION'  then l_job_id := pkg_bicc_ap_inv_application.load_and_preview(r.file_name);
+                when 'QSTNR_ANSWER'    then l_job_id := pkg_bicc_qstnr_answer.load_and_preview(r.file_name);
+                when 'QSTNR_QUESTION'  then l_job_id := pkg_bicc_qstnr_question.load_and_preview(r.file_name);
+                when 'QSTNR_RESPONSE'  then l_job_id := pkg_bicc_qstnr_response.load_and_preview(r.file_name);
                 else
                     raise_application_error(-20001, 'Unsupported load_type: ' || r.load_type);
             end case;
 
             -- Merge
             case r.load_type
-                when 'AP_INVOICE_HDR' then pkg_bicc_ap_invoice_hdr.merge(p_job_id => l_job_id);
-                when 'PO_HDR'         then pkg_bicc_po_hdr.merge(p_job_id => l_job_id);
-                when 'PO_LINES'       then pkg_bicc_po_lines.merge(p_job_id => l_job_id);
-                when 'SUPPLIER_HDR'   then pkg_bicc_supplier_hdr.merge(p_job_id => l_job_id);
-                when 'HCM_EMPLOYEE'   then pkg_bicc_hcm_employee.merge(p_job_id => l_job_id);
-                when 'HCM_POSITION'   then pkg_bicc_hcm_position.merge(p_job_id => l_job_id);
+                when 'HCM_EMPLOYEE'    then pkg_bicc_hcm_employee.merge(p_job_id => l_job_id);
+                when 'HCM_POSITION'    then pkg_bicc_hcm_position.merge(p_job_id => l_job_id);
                 when 'HCM_ASSIGNMENT'  then pkg_bicc_hcm_assignment.merge(p_job_id => l_job_id);
                 when 'HCM_SALARY'      then pkg_bicc_hcm_salary.merge(p_job_id => l_job_id);
                 when 'POS_CUSTOM_FLEX' then pkg_bicc_pos_custom_flex.merge(p_job_id => l_job_id);
-                when 'GL_CODE_COMB'    then pkg_bicc_gl_code_comb.merge(p_job_id => l_job_id);
-                when 'GL_BALANCE'      then pkg_bicc_gl_balance.merge(p_job_id => l_job_id);
-                when 'QSTNR_ANSWER'   then pkg_bicc_qstnr_answer.merge(p_job_id => l_job_id);
-                when 'QSTNR_QUESTION' then pkg_bicc_qstnr_question.merge(p_job_id => l_job_id);
-                when 'QSTNR_RESPONSE'     then pkg_bicc_qstnr_response.merge(p_job_id => l_job_id);
-                when 'AP_DISBURSEMENT'    then pkg_bicc_ap_disbursement.merge(p_job_id => l_job_id);
-                when 'AP_INV_APPLICATION' then pkg_bicc_ap_inv_application.merge(p_job_id => l_job_id);
+                when 'QSTNR_ANSWER'    then pkg_bicc_qstnr_answer.merge(p_job_id => l_job_id);
+                when 'QSTNR_QUESTION'  then pkg_bicc_qstnr_question.merge(p_job_id => l_job_id);
+                when 'QSTNR_RESPONSE'  then pkg_bicc_qstnr_response.merge(p_job_id => l_job_id);
             end case;
 
             commit;
