@@ -72,7 +72,7 @@ INSERT INTO rest_source_registry (module_static_id, display_name, module_code, d
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
     ('rest_sync_receivable_transactions', 'Receivable Transactions', 'FIN', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
--- HCM (6 sources — active)
+-- HCM/Recruiting (4 sources — active)
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
     ('rest_sync_job_applications', 'Job Applications', 'HCM', 'LastUpdateDate', 'INCREMENTAL');
 
@@ -80,16 +80,17 @@ INSERT INTO rest_source_registry (module_static_id, display_name, module_code, d
     ('rest_sync_job_requisitions', 'Job Requisitions', 'HCM', NULL, 'CODE_BASED', 'pkg_rest_recruiting.load_requisitions');
 
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_absences', 'Absences', 'HCM', 'lastUpdateDate', 'INCREMENTAL');
-
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
     ('rest_sync_positions', 'Positions', 'HCM', 'LastUpdateDate', 'INCREMENTAL');
-
-INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type) VALUES
-    ('rest_sync_salaries', 'Salaries', 'HCM', 'LastUpdateDate', 'INCREMENTAL');
 
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, loader_procedure) VALUES
     ('rest_sync_recruitingcandidates', 'Recruiting Candidates', 'HCM', NULL, 'CODE_BASED', 'pkg_rest_recruiting.load_candidates');
+
+-- HCM — DEPRECATED 2026-10-01
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_absences', 'Absences', 'HCM', 'lastUpdateDate', 'INCREMENTAL', 'N');
+
+INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
+    ('rest_sync_salaries', 'Salaries', 'HCM', 'LastUpdateDate', 'INCREMENTAL', 'N');
 
 -- Procurement — DEPRECATED 2026-10-01
 INSERT INTO rest_source_registry (module_static_id, display_name, module_code, date_field, sync_type, is_active) VALUES
